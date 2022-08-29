@@ -37,7 +37,8 @@ def get_weather(region):
                       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
     }
     key = config["weather_key"]
-    region_url = "https://geoapi.qweather.com/v2/city/lookup?location={}&key={}".format(region, key)
+    region_url = "https://api.tianapi.com/tianqi/index?city={}&key={}".format(region, key)
+    # region_url = "https://geoapi.qweather.com/v2/city/lookup?location={}&key={}".format(region, key)
     response = get(region_url, headers=headers).json()
     if response["code"] == "404":
         print("推送消息失败，请检查地区名是否有误！")
@@ -47,18 +48,23 @@ def get_weather(region):
         print("推送消息失败，请检查和风天气key是否正确！")
         os.system("pause")
         sys.exit(1)
-    else:
+    # else:
         # 获取地区的location--id
-        location_id = response["location"][0]["id"]
-    weather_url = "https://devapi.qweather.com/v7/weather/now?location={}&key={}".format(location_id, key)
+        # location_id = response["location"][0]["id"]
+    # weather_url = "https://devapi.qweather.com/v7/weather/now?location={}&key={}".format(location_id, key)
+    weather_url = "https://api.tianapi.com/tianqi/index?city={}&key={}".format(region, key)
     response = get(weather_url, headers=headers).json()
     # 天气
-    weather = response["now"]["text"]
-    # 当前温度
-    temp = response["now"]["temp"] + u"\N{DEGREE SIGN}" + "C"
+    weather = response["newslist"][0]["weather"]
+    # 最高温度
+    highest = response["newslist"][0]["highest"]
+    # 最低温度
+    lowest = response["newslist"][0]["lowest"]
     # 风向
-    wind_dir = response["now"]["windDir"]
-    return weather, temp, wind_dir
+    wind_dir = response["newslist"][0]["wind"]
+    # 风向
+    tips = response["newslist"][0]["tips"]
+    return weather, highest, lowest, wind_dir, tips
  
  
 def get_birthday(birthday, year, today):
@@ -115,7 +121,7 @@ def get_ciba():
     return note_ch, note_en
  
  
-def send_message(to_user, access_token, region_name, weather, temp, wind_dir, note_ch, note_en):
+def send_message(to_user, access_token, region_name, weather, highest, lowest,wind_dir,tips, note_ch, note_en):
     url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={}".format(access_token)
     week_list = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
     year = localtime().tm_year
@@ -129,7 +135,7 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
     love_day = int(config["love_date"].split("-")[2])
     love_date = date(love_year, love_month, love_day)
     # 获取在一起的日期差
-    love_days = str(today.__sub__(love_date)).split(" ")[0]
+    love_days = abs(int(str(today.__sub__(love_date)).split(" ")[0]))
     # 获取所有生日数据
     birthdays = {}
     for k, v in config.items():
@@ -153,8 +159,12 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
                 "value": weather,
                 "color": get_color()
             },
-            "temp": {
-                "value": temp,
+            "highest": {
+                "value": highest,
+                "color": get_color()
+            },
+            "lowest": {
+                "value": lowest,
                 "color": get_color()
             },
             "wind_dir": {
@@ -163,6 +173,10 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
             },
             "love_day": {
                 "value": love_days,
+                "color": get_color()
+            },
+            "tips": {
+                "value": tips,
                 "color": get_color()
             },
             "note_en": {
@@ -221,7 +235,7 @@ if __name__ == "__main__":
     users = config["user"]
     # 传入地区获取天气信息
     region = config["region"]
-    weather, temp, wind_dir = get_weather(region)
+    weather, highest, lowest, wind_dir, tips = get_weather(region)
     note_ch = config["note_ch"]
     note_en = config["note_en"]
     if note_ch == "" and note_en == "":
@@ -229,5 +243,5 @@ if __name__ == "__main__":
         note_ch, note_en = get_ciba()
     # 公众号推送消息
     for user in users:
-        send_message(user, accessToken, region, weather, temp, wind_dir, note_ch, note_en)
+        send_message(user, accessToken, region, weather, highest, lowest, wind_dir, tips, note_ch, note_en)
     os.system("pause")
