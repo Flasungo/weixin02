@@ -1,4 +1,4 @@
-name: weixin
+name: weixin02
 on:
   workflow_dispatch:
   schedule: 
